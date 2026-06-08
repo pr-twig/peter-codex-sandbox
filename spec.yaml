@@ -1,0 +1,24 @@
+schemaVersion: "1"
+kind: mixin
+name: elia-dev-sandbox-kit
+displayName: "Elia Dev Sandbox Kit"
+
+commands:
+  startup:
+    - command:
+        - sh
+        - -c
+        - |
+          mkdir -p /home/agent/.claude
+          test -f /home/agent/.claude/settings.json || echo '{}' > /home/agent/.claude/settings.json
+          jq -s '.[0] * .[1]' /home/agent/.claude/settings.json /home/agent/.claude/settings-to-merge.json > /tmp/claude-settings-merged.json && mv /tmp/claude-settings-merged.json /home/agent/.claude/settings.json
+          JSON
+      user: "1000"
+      description: Write user-scope claude settings
+    - command:
+        - sh
+        - -c
+        - |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      user: "1000"
+      description: Configure git to use HTTPS for GitHub
