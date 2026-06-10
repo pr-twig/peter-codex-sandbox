@@ -1,7 +1,7 @@
 schemaVersion: "1"
 kind: mixin
-name: elia-dev-sandbox-kit
-displayName: "Elia Dev Sandbox Kit"
+name: peter-dev-sandbox-kit
+displayName: "Peter Dev Sandbox Kit"
 
 commands:
   startup:
@@ -9,16 +9,22 @@ commands:
         - sh
         - -c
         - |
-          mkdir -p /home/agent/.claude
-          test -f /home/agent/.claude/settings.json || echo '{}' > /home/agent/.claude/settings.json
-          jq -s '.[0] * .[1]' /home/agent/.claude/settings.json /home/agent/.claude/settings-to-merge.json > /tmp/claude-settings-merged.json && mv /tmp/claude-settings-merged.json /home/agent/.claude/settings.json
-          JSON
+          if ! git config --global url."https://github.com/".insteadOf "git@github.com:"; then
+            printf '%s\n' 'Warning: failed to configure GitHub HTTPS rewrite' >&2
+          fi
+          if ! git -C /home/agent/dotfiles pull --ff-only; then
+            printf '%s\n' 'Warning: failed to update dotfiles; using the existing checkout' >&2
+          fi
+          if ! git -C /home/agent/dotfiles submodule update --init --recursive; then
+            printf '%s\n' 'Warning: failed to refresh dotfiles submodules; using existing content' >&2
+          fi
+          DOTFILES_UPDATE=0 \
+          DOTFILES_INSTALL_CODEX_CONFIG=0 \
+          DOTFILES_INSTALL_CODEX_RULES=0 \
+          /home/agent/dotfiles/setup.sh
       user: "1000"
-      description: Write user-scope claude settings
-    - command:
-        - sh
-        - -c
-        - |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-      user: "1000"
-      description: Configure git to use HTTPS for GitHub
+      description: Refresh and install dotfiles
+
+network:
+  allowedDomains:
+    - github.com

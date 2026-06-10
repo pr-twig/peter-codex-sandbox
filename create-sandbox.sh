@@ -1,12 +1,32 @@
-#!/bin/bash
-KIT_DIR="$(dirname "$0")"
+#!/bin/sh
+set -eu
 
-existing=$(sbx ls --json 2>/dev/null | jq -r --arg cwd "$(pwd)" '.sandboxes[] | select(.workspaces[] == $cwd) | .name' 2>/dev/null | head -1)
+KIT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+WORKSPACE=$(pwd -P)
+
+existing=$(
+  sbx ls --json 2>/dev/null |
+    jq -r --arg workspace "$WORKSPACE" '
+      def workspace_path:
+        if type == "string" then sub(":ro$"; "")
+        elif type == "object" then
+          (.path // .source // .hostPath // .host_path // .workspace // empty)
+        else empty
+        end;
+
+      .sandboxes[]?
+      | select(.agent == "codex")
+      | select(any(.workspaces[]?; workspace_path == $workspace))
+      | .name
+    ' 2>/dev/null |
+    head -n 1
+)
 
 if [ -n "$existing" ]; then
-    sbx run "$existing" "$@"
+  exec sbx run "$existing" "$@"
 else
-    cp ~/.claude/CLAUDE.md "$KIT_DIR/files/home/.claude/CLAUDE.md"
-    cp -r ~/.claude/skills "$KIT_DIR/files/home/.claude/skills"
-    sbx run --template elia-dev-sandbox-kit claude --kit "$KIT_DIR" "$@"
+  exec sbx run \
+    --template peter-dev-sandbox-kit:latest \
+    --kit "$KIT_DIR" \
+    codex "$WORKSPACE" "$@"
 fi
